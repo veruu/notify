@@ -8,22 +8,43 @@ from time import sleep
 from urllib2 import urlopen, URLError
 
 
+TYPE_TO_INDEX = {
+    'mail': 1,
+    'study': 2,
+    'work': 3
+    }
+
+INDEX_TO_TYPE = {
+    1: 'mail',
+    2: 'study',
+    3: 'work'
+}
+
+FUNCTION_MAPPING = {
+    'usage': usage,
+    'u': usage,
+    'notify': notify,
+    'n': notify,
+    'remove': remove_notification,
+    'r': remove_notification
+}
+
+FILENAME = os.path.expanduser('~') + '/.notify'
+
 
 def is_network_connection():
     """
     It is useless to notify user about things that require network
     connection (eg. mails) if the device is not conncted. Therefore
-    we check connection and print only relevant notifications. Using
-    Google page, as it loads quickly, and using directly IP address,
-    so we avoid DNS lookup.
+    we check connection and print only relevant notifications.
     """
 
     try:
-        r = urlopen('http://74.125.228.100', timeout=1)
-        return True
+        urlopen('http://www.google.com', timeout=2)
     except URLError:
         return False
 
+    return True
 
 
 def connect_db():
@@ -31,10 +52,9 @@ def connect_db():
         notifications_db = sqlite3.connect(FILENAME)
         cursor = notifications_db.cursor()
         return (notifications_db, cursor)
-    except sqlite3.Error as e:
-        print '[ERROR]', e.args[0]
+    except sqlite3.Error as exc:
+        print '[ERROR]', exc.args[0]
         sys.exit()
-
 
 
 def notify():
@@ -43,14 +63,13 @@ def notify():
 
     If the script is not run from terminal (is run after boot), sleep
     for five minutes (eg the computer may take a while to connect to
-    network (authentication is needed and so), then connect to new
-    xterm to print out notifications.
+    network, then connect to new xterm to print out notifications.
     If there is not network connection, don't print notfications about
     mails, searching web etc. (depending on supported notification
     types).
     """
 
-    notifications_db, cursor = connect_db()[0], connect_db()[1]
+    notifications_db, cursor = connect_db()
 
     cursor.execute('select * from notifications')
     notifications = cursor.fetchall()
@@ -59,30 +78,30 @@ def notify():
         sleep(5 * 60)
         xterm = 'xterm -e'
         bash = 'bash -c'
-        cmd = 'python /home/veronika/Documents/py/notify/notify.py; bash'
+        cmd = 'python /home/veronika/git/notify/notify.py; bash'
         os.system('{} \'{} "{}"\''.format(xterm, bash, cmd))
 
-    is_connection = True if is_network_connection() else False
+    is_connection = is_network_connection()
     if not is_connection:
         print 'You have no network connection, showing only notifications'\
               ' where it may not be\nnecessary:\n'
 
     for notification in notifications:
-        if not is_connection and notification[0] in [1]:
+        if not is_connection and notification[1] in [TYPE_TO_INDEX['mail']]:
             continue
         print notification[0], ' ', INDEX_TO_TYPE[notification[1]],\
-              notification[2]
+            notification[2]
 
     notifications_db.close()
 
 
-
 def usage(args):
+    print '{} is not a valid construction.\n'.format(' '.join(args[1:]))
+
     print '[usage, u] for usage\n' \
           '<type of notification> <notes> for creating new notification\n'\
           '\t\ttype is one of [mail, work, study], notes < 70chars\n' \
           '[remove, r] <number> for removing given notification'
-
 
 
 def create_new_notification(args):
@@ -95,7 +114,7 @@ def create_new_notification(args):
     database.
     """
 
-    notifications_db, cursor = connect_db()[0], connect_db()[1]
+    notifications_db, cursor = connect_db()
 
     cursor.execute('create table if not exists notifications '
                    '(n integer, type integer, notes text)')
@@ -114,52 +133,20 @@ def create_new_notification(args):
     notification_body = ' '.join(args[1:])
 
     cursor.execute(
-            'insert into notifications(n, type, notes) values (?, ?, ?)',
-            (notification_number, notification_type, notification_body))
+        'insert into notifications(n, type, notes) values (?, ?, ?)',
+        (notification_number, notification_type, notification_body))
 
     notifications_db.commit()
     notifications_db.close()
 
 
-
-
 def remove_notification(args):
-    notifications_db, cursor = connect_db()[0], connect_db()[1]
+    notifications_db, cursor = connect_db()
 
     cursor.execute('delete from notifications where n = ?', (int(args[1]),))
 
     notifications_db.commit()
-    cursor.execute('select * from notifications')
     notifications_db.close()
-
-
-
-"""Constants"""
-
-
-TYPE_TO_INDEX = {
-        'mail': 1,
-        'study': 2,
-        'work': 3
-        }
-
-INDEX_TO_TYPE = {
-        1: 'mail',
-        2: 'study',
-        3: 'work'
-        }
-
-FUNCTION_MAPPING = {
-        'usage': usage,
-        'u': usage,
-        'notify': notify,
-        'n': notify,
-        'remove': remove_notification,
-        'r': remove_notification
-        }
-
-FILENAME = os.path.expanduser('~') + '/.notify'
-
 
 
 def main():
