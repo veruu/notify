@@ -11,13 +11,15 @@ from urllib2 import urlopen, URLError
 TYPE_TO_INDEX = {
     'mail': 1,
     'study': 2,
-    'work': 3
+    'work': 3,
+    'search': 4
     }
 
 INDEX_TO_TYPE = {
     1: 'mail',
     2: 'study',
-    3: 'work'
+    3: 'work',
+    4: 'search'
 }
 
 FUNCTION_MAPPING = {
@@ -87,7 +89,8 @@ def notify():
               ' where it may not be\nnecessary:\n'
 
     for notification in notifications:
-        if not is_connection and notification[1] in [TYPE_TO_INDEX['mail']]:
+        if not is_connection and notification[1] in [TYPE_TO_INDEX['mail'],
+                                                     TYPE_TO_INDEX['search']]:
             continue
         print notification[0], ' ', INDEX_TO_TYPE[notification[1]],\
             notification[2]
@@ -98,9 +101,10 @@ def notify():
 def usage(args):
     print '{} is not a valid construction.\n'.format(' '.join(args[1:]))
 
-    print '[usage, u] for usage\n' \
+    print '[usage, u] for usage\n'\
           '<type of notification> <notes> for creating new notification\n'\
-          '\t\ttype is one of [mail, work, study], notes < 70chars\n' \
+          '\t\ttype is one of [mail, work, study, search],\n'\
+          'notes < 70chars\n'\
           '[remove, r] <number> for removing given notification'
 
 
